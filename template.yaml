@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: NitiMitra serverless welfare assistant backend
+
+Parameters:
+  KnowledgeBaseId:
+    Type: String
+    Description: ID of the Bedrock Knowledge Base
+  ModelArn:
+    Type: String
+    Description: ARN of the Bedrock Foundation Model (Claude 3.5 Sonnet)
+    Default: arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 45
+    MemorySize: 512
+
+Resources:
+  NitiMitraApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: NitiMitraApi
+      StageName: Prod
+      Cors:
+        AllowMethods: "'OPTIONS,POST'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+
+  NitiMitraFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./backend
+      Handler: lambda_function.lambda_handler
+      Environment:
+        Variables:
+          KNOWLEDGE_BASE_ID: !Ref KnowledgeBaseId
+          MODEL_ARN: !Ref ModelArn
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:RetrieveAndGenerate
+                - bedrock:Retrieve
+              Resource: '*'
+      Events:
+        ChatEndpoint:
+          Type: Api
+          Properties:
+            Path: /chat
+            Method: post
+            RestApiId: !Ref NitiMitraApi
+
+Outputs:
+  ApiUrl:
+    Description: NitiMitra chat API endpoint
+    Value: !Sub https://${NitiMitraApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/chat
+    Export:
+      Name: NitiMitraApiUrl
