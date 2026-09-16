@@ -15,7 +15,6 @@ import {
   ShieldCheck,
   Sparkles,
   UserRound,
-  Video,
   X,
   Square,
   Volume2,
@@ -31,10 +30,19 @@ const LANGUAGES = [
   { name: "Kannada", label: "Kannada / ಕನ್ನಡ", code: "kn-IN" },
 ];
 
+const SPEECH_LOCALES = {
+  English: "en-IN",
+  Telugu: "te-IN",
+  Kannada: "kn-IN",
+  Hindi: "hi-IN",
+  Tamil: "ta-IN",
+};
+
 const INITIAL_PROFILE = {
   age: "",
   annualIncome: "< 1 Lakh",
   landHoldingAcres: 0,
+  occupation: "",
   socialCategory: "General",
   state: "All India",
 };
@@ -43,6 +51,14 @@ const INITIAL_MESSAGE = {
   role: "assistant",
   content:
     "Namaste! I am NitiMitra, your guide to government welfare schemes. Ask me about a scheme, eligibility, required documents, or its official application portal.",
+};
+
+const WELCOME_MESSAGES = {
+  English: "Namaste! I am NitiMitra, your guide to government welfare schemes. Ask me about a scheme, eligibility, required documents, or its official application portal.",
+  Hindi: "नमस्ते! मैं नीति मित्र हूं, सरकारी कल्याण योजनाओं के बारे में आपका मार्गदर्शक। किसी योजना, पात्रता, आवश्यक दस्तावेज या आधिकारिक आवेदन पोर्टल के बारे में पूछें।",
+  Telugu: "నమస్కారం! నేను నీతి మిత్రను, ప్రభుత్వ సంక్షేమ పథకాలపై మీకు మార్గదర్శిని. పథకం, అర్హత, అవసరమైన పత్రాలు లేదా అధికారిక దరఖాస్తు పోర్టల్ గురించి అడగండి.",
+  Tamil: "வணக்கம்! நான் நிதிமித்ரா, அரசு நலத்திட்டங்களுக்கு உங்களின் வழிகாட்டி. திட்டம், தகுதி, தேவையான ஆவணங்கள் அல்லது அதிகாரப்பூர்வ விண்ணப்ப இணையதளம் பற்றி கேளுங்கள்.",
+  Kannada: "ನಮಸ್ಕಾರ! ನಾನು ನೀತಿಮಿತ್ರ, ಸರ್ಕಾರಿ ಕಲ್ಯಾಣ ಯೋಜನೆಗಳ ಕುರಿತು ನಿಮ್ಮ ಮಾರ್ಗದರ್ಶಿ. ಯೋಜನೆ, ಅರ್ಹತೆ, ಅಗತ್ಯ ದಾಖಲೆಗಳು ಅಥವಾ ಅಧಿಕೃತ ಅರ್ಜಿ ಪೋರ್ಟಲ್ ಕುರಿತು ಕೇಳಿ.",
 };
 
 const STARTER_PROMPTS = [
@@ -153,7 +169,7 @@ function splitAssistantSections(content) {
     if (!line) return;
 
     const heading = line.match(
-      /^(?:\d+[.)]\s*)?(overview|eligibility(?: criteria)?|required documents(?: checklist)?|documents|official portal link|application link|अवलोकन|पात्रता मानदंड|आवश्यक दस्तावेज(?: चेकलिस्ट)?|आधिकारिक पोर्टल लिंक|అవలోకనం|అర్హత ప్రమాణాలు|అవసరమైన పత్రాల చెక్‌లిస్ట్|అధికారిక పోర్టల్ లింక్|மேலோட்டம்|தகுதி நிபந்தனைகள்|தேவையான ஆவணங்கள் சரிபார்ப்புப் பட்டியல்|அதிகாரப்பூர்வ இணையதள இணைப்பு|ಅವಲೋಕನ|ಅರ್ಹತಾ ಮಾನದಂಡಗಳು|ಅಗತ್ಯ ದಾಖಲೆಗಳ ಪರಿಶೀಲನಾ ಪಟ್ಟಿ|ಅಧಿಕೃತ ಪೋರ್ಟಲ್ ಲಿಂಕ್)\s*:?[\s]*$/i,
+      /^(?:\d+[.)]\s*)?(overview|eligibility(?: criteria)?|required documents(?: checklist)?|documents|official portal link|application link|status guidance|application status|अवलोकन|पात्रता मानदंड|आवश्यक दस्तावेज(?: चेकलिस्ट)?|आधिकारिक पोर्टल लिंक|అవలోకనం|అర్హత ప్రమాణాలు|అవసరమైన పత్రాల చెక్‌లిస్ట్|అధికారిక పోర్టల్ లింక్|மேலோட்டம்|தகுதி நிபந்தனைகள்|தேவையான ஆவணங்கள் சரிபார்ப்புப் பட்டியல்|அதிகாரப்பூர்வ இணையதள இணைப்பு|ಅವಲೋಕನ|ಅರ್ಹತಾ ಮಾನದಂಡಗಳು|ಅಗತ್ಯ ದಾಖಲೆಗಳ ಪರಿಶೀಲನಾ ಪಟ್ಟಿ|ಅಧಿಕೃತ ಪೋರ್ಟಲ್ ಲಿಂಕ್)\s*:?[\s]*$/i,
     );
     if (heading) {
       if (current.title || current.lines.length) sections.push(current);
@@ -169,6 +185,25 @@ function splitAssistantSections(content) {
 
 function isDocumentsSection(title) {
   return /document|दस्तावेज|పತ್ರ|ஆவண|ದಾಖಲೆ/i.test(title || "");
+}
+
+const STATUS_GUIDANCE = `Status Guidance
+- Open https://pmkisan.gov.in/ and choose "Know Your Status".
+- Use your Registration Number or registered mobile number, then complete the OTP verification.
+- If an installment is delayed, check e-KYC completion, Land Seeding status, and NPCI/DBT bank seeding.
+- For unresolved issues, visit your local CSC or agriculture office with generic identity and land documents. Never share ID numbers in chat.`;
+
+function demoIntentResponse(query, profile) {
+  const normalizedQuery = query.toLowerCase();
+  if (/track application status|status|installment|kyc/i.test(normalizedQuery)) return STATUS_GUIDANCE;
+  if (/check my eligibility|eligibility/i.test(normalizedQuery)) {
+    const age = Number(profile.age);
+    const landHolding = Number(profile.landHoldingAcres);
+    if (profile.age && age < 18) return "As a minor (under 18), you cannot apply independently for PM-KISAN. However, your parents can apply as a family unit if cultivable land is registered in their name. Would you like to check if your parents qualify?";
+    if (landHolding === 0) return "PM-KISAN requires cultivable landholding registered in revenue records. Since you do not own land, you may not qualify for PM-KISAN, but you may be eligible for agricultural worker schemes like PM-SYM or MGNREGA.";
+    return "Your profile suggests a possible PM-KISAN eligibility path because a cultivable landholding is recorded. I still need to confirm scheme exclusions and official records from the Knowledge Base before giving a final verdict. Would you like to review the required documents?";
+  }
+  return null;
 }
 
 function extractSchemeName(overview) {
@@ -197,8 +232,17 @@ function extractChecklist(content) {
   return { documents, overview, portalUrl, schemeName };
 }
 
-function createWhatsAppShareUrl(content) {
+const SHARE_LABELS = {
+  English: { title: "*NitiMitra Scheme Update*", scheme: "Scheme Name", schemeFallback: "Welfare Scheme", eligibility: "Key eligibility criteria", portal: "Official Application Link", portalFallback: "Not provided", fallback: "Please check the official scheme eligibility details." },
+  Hindi: { title: "*नीति मित्र योजना अपडेट*", scheme: "योजना का नाम", schemeFallback: "कल्याण योजना", eligibility: "मुख्य पात्रता मानदंड", portal: "आधिकारिक आवेदन लिंक", portalFallback: "उपलब्ध नहीं", fallback: "कृपया आधिकारिक पोर्टल पर योजना की पात्रता जांचें।" },
+  Telugu: { title: "*నీతి మిత్ర పథకం సమాచారం*", scheme: "పథకం పేరు", schemeFallback: "సంక్షేమ పథకం", eligibility: "ముఖ్యమైన అర్హత ప్రమాణాలు", portal: "అధికారిక దరఖాస్తు లింక్", portalFallback: "అందుబాటులో లేదు", fallback: "అధికారిక పోర్టల్‌లో పథకం అర్హతను పరిశీలించండి." },
+  Tamil: { title: "*நிதிமித்ரா திட்ட தகவல்*", scheme: "திட்டத்தின் பெயர்", schemeFallback: "நலத்திட்டம்", eligibility: "முக்கிய தகுதி நிபந்தனைகள்", portal: "அதிகாரப்பூர்வ விண்ணப்ப இணைப்பு", portalFallback: "வழங்கப்படவில்லை", fallback: "அதிகாரப்பூர்வ இணையதளத்தில் திட்டத் தகுதியை சரிபார்க்கவும்." },
+  Kannada: { title: "*ನೀತಿಮಿತ್ರ ಯೋಜನೆ ಮಾಹಿತಿ*", scheme: "ಯೋಜನೆಯ ಹೆಸರು", schemeFallback: "ಕಲ್ಯಾಣ ಯೋಜನೆ", eligibility: "ಮುಖ್ಯ ಅರ್ಹತಾ ಮಾನದಂಡಗಳು", portal: "ಅಧಿಕೃತ ಅರ್ಜಿ ಲಿಂಕ್", portalFallback: "ಲಭ್ಯವಿಲ್ಲ", fallback: "ಅಧಿಕೃತ ಪೋರ್ಟಲ್‌ನಲ್ಲಿ ಯೋಜನೆಯ ಅರ್ಹತೆಯನ್ನು ಪರಿಶೀಲಿಸಿ." },
+};
+
+function createWhatsAppShareUrl(content, languageName) {
   const sections = splitAssistantSections(content);
+  const labels = SHARE_LABELS[languageName] || SHARE_LABELS.English;
   const overviewSection = sections.find((section) => /overview|अवलोकन|மேலோட்டம்|అవలోకనం|ಅವಲೋಕನ/i.test(section.title || ""));
   const eligibilitySection = sections.find((section) => /eligibility|पात्रता|தகுதி|అర్హత|ಅರ್ಹತಾ/i.test(section.title || ""));
   const overview = overviewSection?.lines.join(" ") || content;
@@ -206,13 +250,15 @@ function createWhatsAppShareUrl(content) {
     .map((line) => line.replace(/^[-*•]\s*/, "").trim())
     .filter(Boolean)
     .slice(0, 3)
-    .join("; ") || "Please check the official scheme eligibility details.";
-  const portalUrl = content.match(/https?:\/\/\S+/)?.[0]?.replace(/[).,]+$/, "") || "Not provided";
+    .join("; ") || labels.fallback;
+  const portalUrl = content.match(/https?:\/\/\S+/)?.[0]?.replace(/[).,]+$/, "") || labels.portalFallback;
+  const extractedSchemeName = extractSchemeName(overview);
+  const schemeName = extractedSchemeName === "Welfare Scheme" ? labels.schemeFallback : extractedSchemeName;
   const shareText = [
-    "*NitiMitra Scheme Update*",
-    `- Scheme Name: ${extractSchemeName(overview)}`,
-    `- Key eligibility criteria: ${eligibility}`,
-    `- Official Application Link: ${portalUrl}`,
+    labels.title,
+    `- ${labels.scheme}: ${schemeName}`,
+    `- ${labels.eligibility}: ${eligibility}`,
+    `- ${labels.portal}: ${portalUrl}`,
   ].join("\n");
 
   return `https://wa.me/?text=${encodeURIComponent(shareText)}`;
@@ -254,13 +300,13 @@ function speechText(content) {
     .replace(/#{1,6}\s*/g, "")
     .replace(/\*\*(.*?)\*\*/g, "$1")
     .replace(/__(.*?)__/g, "$1")
-    .replace(/[*_`~]/g, "")
+    .replace(/[*#`_~]/g, "")
     .replace(/^\s*[-*•]\s*/gm, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function AssistantMessage({ content, isSpeaking, onReadAloud }) {
+function AssistantMessage({ content, languageName, isSpeaking, onReadAloud }) {
   const sections = splitAssistantSections(content);
   const checklist = extractChecklist(content);
 
@@ -271,19 +317,20 @@ function AssistantMessage({ content, isSpeaking, onReadAloud }) {
           {isSpeaking ? <Square fill="currentColor" size={12} /> : <Volume2 size={15} />}
           {isSpeaking ? "Stop" : "Listen"}
         </button>
-        <a aria-label="Share to WhatsApp" className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-400 transition hover:bg-green-50 hover:text-green-700" href={createWhatsAppShareUrl(content)} rel="noreferrer" target="_blank">
+        <a aria-label="Share to WhatsApp" className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-400 transition hover:bg-green-50 hover:text-green-700" href={createWhatsAppShareUrl(content, languageName)} rel="noreferrer" target="_blank">
           <MessageCircle size={15} /> Share
         </a>
       </div>
       {sections.map((section, index) => {
         const isDocuments = isDocumentsSection(section.title);
+        const isStatus = /status|स्थिति|స్థితి|நிலை|ಸ್ಥಿತಿ/i.test(section.title || "");
         const isLink = /link|portal|पोर्टल|పోర్టల్|இணையதள|ಪೋರ್ಟಲ್/i.test(section.title);
         const isList = section.lines.some((line) => /^[-*•]/.test(line));
         return (
           <section key={`${section.title || "section"}-${index}`}>
             {section.title && (
               <h3 className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-emerald-800">
-                {isLink ? <ExternalLink size={15} /> : isDocuments ? <CheckCircle2 size={15} /> : <Building2 size={15} />}
+                {isLink ? <ExternalLink size={15} /> : isDocuments ? <CheckCircle2 size={15} /> : isStatus ? <CircleCheck size={15} /> : <Building2 size={15} />}
                 {section.title}
               </h3>
             )}
@@ -341,11 +388,9 @@ export default function NitiMitraChat() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [profileApplied, setProfileApplied] = useState(false);
   const [citizenProfile, setCitizenProfile] = useState(INITIAL_PROFILE);
-  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
-  const [videoError, setVideoError] = useState(false);
   const bottomRef = useRef(null);
   const recognitionRef = useRef(null);
-  const videoRef = useRef(null);
+  const recognitionRetryRef = useRef(0);
 
   const selectedLanguageName = selectedLanguage.name;
   const isDemoMode = !API_ENDPOINT;
@@ -370,9 +415,21 @@ export default function NitiMitraChat() {
       return;
     }
 
+    const targetLocale = SPEECH_LOCALES[selectedLanguage.name] || "en-IN";
+    const languagePrefix = targetLocale.slice(0, 2).toLowerCase();
+    const voices = window.speechSynthesis.getVoices();
+    const matchedVoice = voices.find((voice) => voice.lang.toLowerCase() === targetLocale.toLowerCase())
+      || voices.find((voice) => voice.lang.toLowerCase().startsWith(languagePrefix));
+    const fallbackVoice = voices.find((voice) => voice.lang.toLowerCase() === "en-in") || voices[0];
     window.speechSynthesis.cancel();
     const utterance = new window.SpeechSynthesisUtterance(speechText(content));
-    utterance.lang = selectedLanguage.code;
+    utterance.lang = targetLocale;
+    if (matchedVoice || fallbackVoice) utterance.voice = matchedVoice || fallbackVoice;
+    if (!matchedVoice && fallbackVoice && targetLocale !== "en-IN") {
+      setVoiceStatus(`No ${selectedLanguage.name} voice is installed; using the available voice.`);
+    } else {
+      setVoiceStatus("");
+    }
     utterance.onend = () => setSpeakingMessageIndex(null);
     utterance.onerror = () => setSpeakingMessageIndex(null);
     setSpeakingMessageIndex(messageIndex);
@@ -384,37 +441,21 @@ export default function NitiMitraChat() {
     setProfileApplied(false);
   };
 
-  const handleCloseModal = () => {
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
-    }
-    setIsVideoModalOpen(false);
-  };
-
-  const handleOpenVideoModal = () => {
-    setVideoError(false);
-    setIsVideoModalOpen(true);
-  };
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    if (messages.length === 1 && messages[0].role === "assistant") {
+      setMessages([{ ...messages[0], content: WELCOME_MESSAGES[selectedLanguageName] || WELCOME_MESSAGES.English }]);
+    }
+  }, [selectedLanguageName]);
 
   useEffect(() => () => recognitionRef.current?.stop(), []);
 
   useEffect(() => {
     stopReading();
   }, [selectedLanguage.code]);
-
-  useEffect(() => {
-    if (!isVideoModalOpen) return undefined;
-    const handleEscape = (event) => {
-      if (event.key === "Escape") handleCloseModal();
-    };
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [isVideoModalOpen]);
 
   const toggleListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -426,6 +467,8 @@ export default function NitiMitraChat() {
       recognitionRef.current?.stop();
       return;
     }
+
+    recognitionRetryRef.current = 0;
 
     try {
       const recognition = new SpeechRecognition();
@@ -457,10 +500,24 @@ export default function NitiMitraChat() {
         const messages = {
           "not-allowed": "Microphone access is blocked. Allow microphone access for localhost and try again.",
           "audio-capture": "No microphone was found. Connect a microphone and try again.",
-          network: "Voice recognition could not connect. Check your internet connection.",
+          network: "Voice recognition service is unavailable. Retrying once...",
           "no-speech": "No speech detected. Tap the microphone and speak clearly.",
         };
-        setVoiceStatus(messages[event.error] || "Voice input stopped. Please try again.");
+        if (event.error === "network" && recognitionRetryRef.current < 1) {
+          recognitionRetryRef.current += 1;
+          setIsListening(false);
+          window.setTimeout(() => {
+            if (!recognitionRef.current) return;
+            try {
+              setVoiceStatus("Retrying voice recognition...");
+              recognitionRef.current.start();
+            } catch {
+              setVoiceStatus("Voice recognition is unavailable. Please type your question instead.");
+            }
+          }, 400);
+          return;
+        }
+        setVoiceStatus(event.error === "network" ? "Voice recognition is unavailable. Please type your question instead." : messages[event.error] || "Voice input stopped. Please try again.");
         setIsListening(false);
       };
       recognition.onend = () => {
@@ -476,9 +533,8 @@ export default function NitiMitraChat() {
     }
   };
 
-  const submit = async (event) => {
-    event.preventDefault();
-    const query = input.trim();
+  const sendMessage = async (messageText) => {
+    const query = messageText.trim();
     if (!query || isLoading) return;
 
     setInput("");
@@ -490,9 +546,10 @@ export default function NitiMitraChat() {
       let data;
       if (isDemoMode) {
         await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        const intentResponse = demoIntentResponse(query, citizenProfile);
         const demo = DEMO_RESPONSES[selectedLanguageName] || DEMO_RESPONSES.English;
         data = {
-          answer: demo.content,
+          answer: intentResponse || demo.content,
           citations: ["https://pmkisan.gov.in/"],
           sessionId: sessionId || `demo-${Date.now()}`,
         };
@@ -528,6 +585,15 @@ export default function NitiMitraChat() {
     }
   };
 
+  const submit = (event) => {
+    event.preventDefault();
+    sendMessage(input);
+  };
+
+  const handleIntentChoice = (choice) => {
+    sendMessage(choice);
+  };
+
   return (
     <main className="min-h-screen bg-[#edf4ef] px-3 py-4 font-sans text-slate-900 sm:px-6 sm:py-8">
       <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-6xl flex-col overflow-hidden rounded-[2rem] border border-emerald-100/80 bg-white shadow-[0_30px_100px_-40px_rgba(15,90,70,0.5)] sm:min-h-[calc(100vh-4rem)]">
@@ -539,9 +605,6 @@ export default function NitiMitraChat() {
           </div>
           <div className="relative flex items-center gap-3">
             <span className="hidden items-center gap-1.5 text-[11px] font-medium text-emerald-100/70 sm:flex"><CircleCheck size={14} /> {isDemoMode ? "Demo / Mock Mode" : "Grounded guidance"}</span>
-            <button aria-label="How to Use" className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20" onClick={handleOpenVideoModal} type="button">
-              <Video size={15} /> How to Use
-            </button>
             <button aria-expanded={isProfileOpen} aria-label="Open Citizen Profile" className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition ${profileApplied ? "border-[#f1bd4a] bg-[#f1bd4a] text-[#123b32]" : "border-white/20 bg-white/10 text-white hover:bg-white/20"}`} onClick={() => setIsProfileOpen(true)} type="button">
               <UserRound size={15} /> {profileApplied ? "Profile applied" : "Apply Profile"}
             </button>
@@ -585,6 +648,14 @@ export default function NitiMitraChat() {
                 </label>
 
                 <label className="block text-sm font-semibold text-slate-700">
+                  Occupation
+                  <select className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50" onChange={(event) => updateProfile("occupation", event.target.value)} value={citizenProfile.occupation}>
+                    <option value="">Prefer not to say</option>
+                    {["Farmer", "Agricultural Worker", "Student", "Self-employed", "Other"].map((occupation) => <option key={occupation} value={occupation}>{occupation}</option>)}
+                  </select>
+                </label>
+
+                <label className="block text-sm font-semibold text-slate-700">
                   Social Category
                   <select className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50" onChange={(event) => updateProfile("socialCategory", event.target.value)} value={citizenProfile.socialCategory}>
                     {["General", "OBC", "SC", "ST"].map((category) => <option key={category} value={category}>{category}</option>)}
@@ -609,54 +680,6 @@ export default function NitiMitraChat() {
           </div>
         )}
 
-        {isVideoModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onClick={handleCloseModal} role="dialog" aria-modal="true" aria-labelledby="how-to-use-title">
-            <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl border border-emerald-500/30 bg-gray-900 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300"><Video size={18} /></div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base font-bold text-white sm:text-lg" id="how-to-use-title">How NitiMitra Works</h2>
-                      <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-300">AI Guide</span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-slate-400">Find, understand, and act on welfare support.</p>
-                  </div>
-                </div>
-                <button aria-label="Close How to Use guide" className="rounded-xl p-2 text-slate-400 transition hover:bg-white/10 hover:text-white" onClick={handleCloseModal} type="button"><X size={19} /></button>
-              </div>
-
-              <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-emerald-500/20 bg-black">
-                {videoError ? (
-                  <div className="flex h-full flex-col items-center justify-center px-6 text-center text-white">
-                    <Video className="mb-3 text-emerald-300" size={34} />
-                    <p className="text-sm font-semibold">Video guide is not available yet.</p>
-                    <p className="mt-1 max-w-sm text-xs leading-5 text-slate-400">Add the self-hosted file at <code className="rounded bg-white/10 px-1.5 py-0.5 text-emerald-200">public/how-to-use.mp4</code> to enable playback.</p>
-                  </div>
-                ) : (
-                  <video autoPlay className="h-full w-full object-contain" controls muted onError={() => setVideoError(true)} playsInline ref={videoRef} src="/how-to-use.mp4">
-                    Your browser does not support the video tag.
-                  </video>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 border-t border-white/10 bg-gray-950/40 p-4 sm:grid-cols-3 sm:p-5">
-                {[
-                  { title: "1. Choose Language", description: "Select English, Telugu, or Hindi", icon: "01" },
-                  { title: "2. Voice or Text", description: "Speak your query or type details", icon: "02" },
-                  { title: "3. Check & Apply", description: "View criteria, get checklist, visit portal", icon: "03" },
-                ].map((step) => (
-                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3" key={step.title}>
-                    <span className="text-[10px] font-bold tracking-[0.14em] text-amber-300">{step.icon}</span>
-                    <h3 className="mt-1 text-xs font-bold text-white">{step.title}</h3>
-                    <p className="mt-1 text-[11px] leading-4 text-slate-400">{step.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="flex flex-1 flex-col bg-[linear-gradient(135deg,#fbfdfb_0%,#f3f9f5_100%)]">
           <div className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-10 sm:py-8">
             {messages.length === 1 && (
@@ -674,8 +697,14 @@ export default function NitiMitraChat() {
                 <div className="max-w-[92%] sm:max-w-[78%]">
                   {message.role === "assistant" && <div className="mb-2 flex items-center gap-2 px-1 text-xs font-bold text-emerald-800"><span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-700 text-white"><ShieldCheck size={14} /></span>NitiMitra <span className="font-normal text-slate-400">• verified assistant</span></div>}
                   <div className={message.role === "user" ? "rounded-2xl rounded-br-md bg-emerald-700 px-4 py-3 text-sm leading-6 text-white shadow-md" : "rounded-2xl rounded-tl-md border border-slate-100 bg-white px-5 py-4 shadow-sm"}>
-                    {message.role === "assistant" ? <AssistantMessage content={message.content} isSpeaking={speakingMessageIndex === index} onReadAloud={(content) => readAloud(content, index)} /> : message.content}
+                    {message.role === "assistant" ? <AssistantMessage content={message.content} languageName={selectedLanguageName} isSpeaking={speakingMessageIndex === index} onReadAloud={(content) => readAloud(content, index)} /> : message.content}
                   </div>
+                  {message.role === "assistant" && /pm[-\s]?kisan/i.test(message.content) && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button className="cursor-pointer rounded-full border border-emerald-500/40 px-3 py-1.5 text-xs font-medium text-emerald-300 transition-colors hover:bg-emerald-500/10" disabled={isLoading} onClick={() => handleIntentChoice("Check My Eligibility")} type="button">🔍 Check My Eligibility</button>
+                      <button className="cursor-pointer rounded-full border border-emerald-500/40 px-3 py-1.5 text-xs font-medium text-emerald-300 transition-colors hover:bg-emerald-500/10" disabled={isLoading} onClick={() => handleIntentChoice("Track Application Status")} type="button">📍 Track Application Status</button>
+                    </div>
+                  )}
                   {message.citations?.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{message.citations.map((citation, citationIndex) => <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] text-emerald-800" key={citationIndex}>Source {citationIndex + 1}: {citation}</span>)}</div>}
                 </div>
               </div>
